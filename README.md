@@ -2,7 +2,7 @@
  Exports layers to a packed atlas
 
 ## Extension:
-[AtlasMaker extension v0.1 for Aseprite](files/atlasmaker_for_aseprite_0.1.zip)
+[Latest AtlasMaker extension for Aseprite](files/atlasmaker_for_aseprite_0.2.zip)
 
 ## Screenshots
 ![Screenshot](files/screenshot_3.png)
