@@ -2,7 +2,7 @@
     "name": "atlasmaker",
     "displayName": "AtlasMaker",
     "description": "Exports layers to a packed atlas.",
-    "version": "0.1",
+    "version": "0.2",
     "author": { "name": "zooperdan",
                 "email": "",
                 "url": "https://zooperdan.itch.io/" },

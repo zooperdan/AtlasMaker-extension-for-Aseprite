@@ -1,9 +1,10 @@
 -- version history
 --
 -- 0.1 initial version
--- 
---    
 --
+-- 0.2
+-- Added option to choose between saving to PNG or BMP   
+-- Removed the "Convert to Indexed" choice since it is a required action anyways.
 --
 --
 --
@@ -315,7 +316,7 @@ local function process_groups(settings)
 	local spriteName = app.fs.fileTitle(sprite.filename)
 	
 	local json_filename = spritePath .. "/" .. spriteName .. ".json"
-	local atlas_filename = spritePath .. "/" .. spriteName .. ".png"
+	local atlas_filename = spritePath .. "/" .. spriteName .. "." .. settings.format
 
 	app.transaction(function ()
 		for i, layer in ipairs(sprite.layers) do
@@ -403,7 +404,7 @@ end
 
 local function mainWindow()
 
-	local dlg = Dialog { title = "AtlasMaker Settings" }
+	local dlg = Dialog { title = "AtlasMaker 0.2" }
 
 	local settings = {
 	  width = 512,
@@ -411,6 +412,7 @@ local function mainWindow()
 	  margin = 0,
 	  show = false,
 	  indexed = true,
+	  format = "png",
 	  save = true,
 	}
 
@@ -419,9 +421,6 @@ local function mainWindow()
 	  }
 	  dlg:label{
 		label = "Specify atlas size, margin, and options below."
-	  }
-	  dlg:label{
-		label = "Atlas can be shown, indexed, and saved automatically."
 	  }
 	  
 	  dlg:label{ text = "" }
@@ -450,21 +449,22 @@ local function mainWindow()
 	  text = tostring(settings.margin)
 	}
 	
+	dlg:combobox{
+		id = "format",
+		label = "Save Format",
+		options = { "png", "bmp" },
+		option = settings.format
+	}
+
 	dlg:check {
 	  id = "show",
-	  label = "Show Atlas Sprite",
+	  label = "Show Atlas when done.",
 	  selected = settings.show
 	}
 	
 	dlg:check {
-	  id = "indexed",
-	  label = "Convert to Indexed",
-	  selected = settings.indexed
-	}
-	
-	dlg:check {
 	  id = "save",
-	  label = "Save PNG + JSON",
+	  label = "Save Atlas + JSON",
 	  selected = settings.save
 	}
 	
@@ -478,7 +478,7 @@ local function mainWindow()
 		settings.height = tonumber(data.height)
 		settings.margin = tonumber(data.margin)
 		settings.show = data.show
-		settings.indexed = data.indexed
+		settings.format = data.format
 		settings.save = data.save
 		dlg:close()
 		process_groups(settings)
