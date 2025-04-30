@@ -11,6 +11,11 @@
 - A dungeon.png and a dungeon.json will be generated next to the dungeon.aseprite file.
 - Read the dungeon.png and dungeon.json into your code, parse it and draw dungeon on screen!
 
+## Layer explanation
+![Screenshot](files/layer_explanation.png)
+- Green tile is player position.
+- Gray tiles are what player can see.
+
 ## Screenshots
 ![Screenshot](files/screenshot_3.png)
 ![Screenshot](files/screenshot_1.png)
