@@ -1,0 +1,43 @@
+[gd_resource type="Theme" load_steps=8 format=3 uid="uid://bjovmg8rev4xb"]
+
+[ext_resource type="FontFile" uid="uid://hhsfg2g5pg74" path="res://assets/fonts/Px437_IBM_DOS_ISO9.ttf" id="1_qew4h"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cs2sx"]
+bg_color = Color(0, 0, 0, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vkpim"]
+bg_color = Color(0, 0, 0, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_203bq"]
+bg_color = Color(0, 0, 0, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_oal56"]
+bg_color = Color(0, 0, 0, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_81pgw"]
+bg_color = Color(0, 0, 0, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qew4h"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+anti_aliasing = false
+
+[resource]
+ItemList/colors/font_color = Color(1, 1, 1, 1)
+ItemList/colors/guide_color = Color(0.701961, 0.701961, 0.701961, 0)
+ItemList/fonts/font = ExtResource("1_qew4h")
+ItemList/styles/focus = SubResource("StyleBoxFlat_cs2sx")
+ItemList/styles/hovered = SubResource("StyleBoxFlat_vkpim")
+ItemList/styles/hovered_selected = SubResource("StyleBoxFlat_203bq")
+ItemList/styles/hovered_selected_focus = SubResource("StyleBoxFlat_oal56")
+ItemList/styles/panel = SubResource("StyleBoxFlat_81pgw")
+Label/constants/line_spacing = -2
+Label/font_sizes/font_size = 16
+Label/fonts/font = ExtResource("1_qew4h")
+Panel/styles/panel = SubResource("StyleBoxFlat_qew4h")
+RichTextLabel/constants/line_separation = -2
+RichTextLabel/fonts/normal_font = ExtResource("1_qew4h")

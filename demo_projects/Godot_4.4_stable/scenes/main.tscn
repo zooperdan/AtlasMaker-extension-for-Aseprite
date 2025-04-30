@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://306hcabq8g8y"]
+
+[ext_resource type="Script" uid="uid://cneaelco85vf1" path="res://scripts/main.gd" id="1_q6r6c"]
+[ext_resource type="Script" uid="uid://y4rmcwmm0tt6" path="res://scripts/viewport.gd" id="3_1bvp3"]
+
+[node name="Main" type="CanvasLayer"]
+script = ExtResource("1_q6r6c")
+
+[node name="Viewport" type="Node2D" parent="."]
+texture_filter = 1
+script = ExtResource("3_1bvp3")

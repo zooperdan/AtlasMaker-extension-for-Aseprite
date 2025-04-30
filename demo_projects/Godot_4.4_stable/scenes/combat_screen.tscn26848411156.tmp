@@ -1,0 +1,101 @@
+[gd_scene load_steps=3 format=3 uid="uid://blklo45t1vp2o"]
+
+[ext_resource type="Script" uid="uid://cq4n2lcsfl0e4" path="res://scripts/combat_screen.gd" id="1_032jr"]
+[ext_resource type="Theme" uid="uid://bjovmg8rev4xb" path="res://assets/default_theme.tres" id="2_uvqtf"]
+
+[node name="CanvasLayer" type="CanvasLayer"]
+layer = 2
+script = ExtResource("1_032jr")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="node_header" type="Node2D" parent="Background"]
+
+[node name="Label6" type="Label" parent="Background/node_header"]
+offset_left = 120.0
+offset_top = 7.0
+offset_right = 360.0
+offset_bottom = 23.0
+theme = ExtResource("2_uvqtf")
+text = "-- Combat --"
+horizontal_alignment = 1
+
+[node name="node_actions" type="Node2D" parent="Background"]
+
+[node name="Label12" type="Label" parent="Background/node_actions"]
+offset_left = 323.0
+offset_top = 206.0
+offset_right = 428.0
+offset_bottom = 222.0
+theme = ExtResource("2_uvqtf")
+text = "[F] Fight"
+
+[node name="Label13" type="Label" parent="Background/node_actions"]
+offset_left = 323.0
+offset_top = 222.0
+offset_right = 449.0
+offset_bottom = 238.0
+theme = ExtResource("2_uvqtf")
+text = "[C] Cast Spell"
+
+[node name="Label16" type="Label" parent="Background/node_actions"]
+offset_left = 323.0
+offset_top = 270.0
+offset_right = 418.0
+offset_bottom = 286.0
+theme = ExtResource("2_uvqtf")
+text = "[R] Run Away"
+
+[node name="Label17" type="Label" parent="Background/node_actions"]
+offset_left = 323.0
+offset_top = 254.0
+offset_right = 422.0
+offset_bottom = 270.0
+theme = ExtResource("2_uvqtf")
+text = "[I] Inspect"
+
+[node name="Label15" type="Label" parent="Background/node_actions"]
+offset_left = 323.0
+offset_top = 238.0
+offset_right = 431.0
+offset_bottom = 254.0
+theme = ExtResource("2_uvqtf")
+text = "[U] Use Item"
+
+[node name="Label16" type="Label" parent="Background"]
+layout_mode = 0
+offset_left = 325.0
+offset_top = 81.0
+offset_right = 470.0
+offset_bottom = 175.0
+theme = ExtResource("2_uvqtf")
+text = "You have no injuries and don't suffer from any afflictions.
+
+You are full."
+autowrap_mode = 3
+
+[node name="Label26" type="Label" parent="Background"]
+layout_mode = 0
+offset_left = 325.0
+offset_top = 41.0
+offset_right = 470.0
+offset_bottom = 85.0
+theme = ExtResource("2_uvqtf")
+text = "The Gods smile upon you."
+autowrap_mode = 3
+
+[node name="RichTextLabel" type="RichTextLabel" parent="."]
+visible = false
+offset_left = 17.0
+offset_top = 218.0
+offset_right = 464.0
+offset_bottom = 286.0
+theme = ExtResource("2_uvqtf")
+text = "You slash a Giant Rat with your sword, causing moderate damage."
+vertical_alignment = 2

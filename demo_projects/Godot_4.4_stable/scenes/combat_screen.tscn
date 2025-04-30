@@ -1,0 +1,458 @@
+[gd_scene load_steps=3 format=3 uid="uid://du7njqe1jtpy7"]
+
+[ext_resource type="Theme" uid="uid://bjovmg8rev4xb" path="res://assets/default_theme.tres" id="2_uvqtf"]
+
+[sub_resource type="GDScript" id="GDScript_icss1"]
+script/source = "extends BaseScreen
+
+@onready var rich_text_label: RichTextLabel = $RichTextLabel
+@onready var node_actions: Node2D = $Background/node_actions
+@onready var label_player_status: RichTextLabel = $Background/label_player_status
+@onready var label_player_end_of_combat: RichTextLabel = $Background/label_player_end_of_combat
+@onready var label_prompt: Label = $Background/node_selection_mode/label_prompt
+@onready var label_cancel: Label = $Background/node_selection_mode/label_cancel
+@onready var node_selection_mode: Node2D = $Background/node_selection_mode
+
+var enemy_container_scene = preload(\"res://scenes/enemy_container.tscn\")
+
+enum CombatState { INIT, ROLL_INITIATIVE, TURN_START, TURN_ACTION, CHECK_COMBAT_END, END }
+
+var combat_state = CombatState.INIT
+var actors = []  # Array of CombatActor
+var initiative_order = []  # Sorted CombatActors by initiative
+var current_actor_index = 0
+var is_ready:bool = false
+var selection_mode:String = \"\"
+var player_is_fleeing:bool = false
+
+var player  # CombatActor
+var enemies = []  # Array of CombatActor
+var zone = {}  # Dictionary describing current zone info
+
+var enemy_containers:Array[Node2D] = []
+
+func start_combat(enemy_ids:Array):
+	
+	label_player_end_of_combat.visible = false
+	node_selection_mode.visible = false
+	node_actions.visible = true
+	
+	label_player_status.clear()
+	label_player_status.append_text(\"%s\\n\" % [Player.get_status_string()])
+	label_player_status.append_text(\"%s\\n\" % [Player.get_negative_effects_string()])
+	
+	# Setup player and enemies
+	player = CombatActor.new(-1, \"player\", \"Player\", Player.base_stats, Player.base_resistances, true)
+
+	# Generate enemies
+	enemies.clear()
+	
+	for i in enemy_ids.size():
+		var enemy_template = TemplateManager.get_template(enemy_ids[i])
+		var scene = enemy_container_scene.instantiate()
+		scene.position = Vector2i(16, 19 + i*41)
+		add_child(scene)
+		scene.init(i, enemy_template)
+		enemy_containers.append(scene)
+		enemies.append(CombatActor.new(i, enemy_template.id, enemy_template.name, enemy_template.base_stats, enemy_template.base_resistances))
+
+	# Setup current zone
+	
+	
+	zone = EncounterManager.get_current_zone()
+
+	combat_state = CombatState.INIT
+
+	is_ready = true
+	
+	next_turn()
+	
+func update_combat():
+	
+	match combat_state:
+		CombatState.INIT:
+			#print(\"[Combat] Initializing...\")
+			actors.clear()
+			actors.append(player)
+			for enemy in enemies:
+				actors.append(enemy)
+			combat_state = CombatState.ROLL_INITIATIVE
+
+		CombatState.ROLL_INITIATIVE:
+			#print(\"[Combat] Rolling Initiative...\")
+			roll_initiative()
+			current_actor_index = 0
+			combat_state = CombatState.TURN_START
+
+		CombatState.TURN_START:
+			if current_actor_index >= initiative_order.size():
+				current_actor_index = 0  # restart the round
+			var actor = initiative_order[current_actor_index]
+			if actor.is_dead:
+				combat_state = CombatState.CHECK_COMBAT_END
+			else:
+				#print(\"[Turn] \", actor.name, \" starts their turn.\")
+				combat_state = CombatState.TURN_ACTION
+
+		CombatState.TURN_ACTION:
+			var actor = initiative_order[current_actor_index]
+			perform_action(actor)
+			return
+			
+		CombatState.CHECK_COMBAT_END:
+			if check_victory():
+				remove_highlight_from_enemies()
+				rich_text_label.text = \"\"
+				label_player_status.visible = false
+				await get_tree().create_timer(1.0).timeout
+				label_player_end_of_combat.text = \"You are victorious!\"
+				label_player_end_of_combat.visible = true
+				await get_tree().create_timer(2.0).timeout
+				combat_state = CombatState.END
+			elif check_defeat():
+				remove_highlight_from_enemies()
+				rich_text_label.text = \"\"
+				label_player_status.visible = false
+				await get_tree().create_timer(1.0).timeout
+				label_player_end_of_combat.text = \"You have been killed..\"
+				label_player_end_of_combat.visible = true
+				await get_tree().create_timer(2.0).timeout
+				combat_state = CombatState.END
+			else:
+				current_actor_index += 1
+				combat_state = CombatState.TURN_START
+
+		CombatState.END:
+			close()
+			return
+
+	next_turn()
+
+func next_turn():
+	update_combat()
+	
+func roll_initiative():
+	
+	initiative_order.clear()
+
+	var encounter_table = null
+
+	if TimeOfDay.is_dusk_or_dawn() :
+		encounter_table = zone.get(\"encounter_table_crepuscular\", {})
+	elif TimeOfDay.is_night():
+		encounter_table = zone.get(\"encounter_table_nocturnal\", {})
+	else:
+		encounter_table = zone.get(\"encounter_table_diurnal\", {})
+
+	var zone_initiative_multiplier = encounter_table.get(\"initiative_multiplier\", 1.0)
+
+	for actor in actors:
+		if actor.is_player:
+			# Player uses normal dexterity (no bonus)
+			actor.calculate_initiative(1.0)
+		else:
+			# Enemies get zone bonus
+			actor.calculate_initiative(zone_initiative_multiplier)
+
+		initiative_order.append(actor)
+
+	# Step 1: shuffle to randomize tie-breaking
+	initiative_order.shuffle()
+
+	# Step 2: sort descending by initiative
+	initiative_order.sort_custom(_sort_initiative)
+
+func _sort_initiative(a, b):
+	return a.initiative_score > b.initiative_score
+		
+func perform_action(actor):
+	
+	if actor.is_player:
+		remove_highlight_from_enemies()
+		if player_is_fleeing:
+			rich_text_label.text = \"\"
+			label_player_status.visible = false
+			Events.show_message.emit(\"You ran away from the enemies..\")
+			close()
+			return
+		node_actions.visible = true
+		rich_text_label.visible = false
+	else:
+		# Enemy attacks player
+		node_actions.visible = false
+		rich_text_label.text = \"\"
+		rich_text_label.visible = true
+		highlight_enemy(actor.index)
+		await get_tree().create_timer(0.1).timeout
+		var damage = actor.calc_damage(player)
+		AudioManager.play_sound(\"click_01\")
+		rich_text_label.text = \"%s attack YOU for %.1f damage!\" % [actor.name, damage]
+		player.apply_damage(damage)
+		Player.health = player.health
+		label_player_status.clear()
+		label_player_status.append_text(\"%s\\n\" % [Player.get_status_string()])
+		label_player_status.append_text(\"%s\\n\" % [Player.get_negative_effects_string()])
+		await get_tree().create_timer(0.8).timeout
+		rich_text_label.text = \"\"
+		await get_tree().create_timer(0.2).timeout
+		combat_state = CombatState.CHECK_COMBAT_END
+		next_turn()
+		
+func remove_highlight_from_enemies():
+	for container in enemy_containers:
+		container.highlight(false)
+	
+func highlight_enemy(index:int):
+	for container in enemy_containers:
+		container.set_active(false)
+	enemy_containers[index].set_active(true)
+
+func pick_random_enemy():
+	var living_enemies = []
+	for enemy in enemies:
+		if enemy.is_alive():
+			living_enemies.append(enemy)
+	if living_enemies.size() == 0:
+		return null
+	return living_enemies[randi() % living_enemies.size()]
+
+func check_victory():
+	for enemy in enemies:
+		if enemy.is_alive():
+			return false
+	return true
+
+func check_defeat():
+	return not player.is_alive()
+
+func update_enemy_containers():
+	for container in enemy_containers:
+		container.highlight(false)
+
+func player_flee():
+	node_actions.visible = false
+	rich_text_label.text = \"You attempt to escape..\"
+	await get_tree().create_timer(1.0).timeout
+	player_is_fleeing = true	
+	combat_state = CombatState.CHECK_COMBAT_END
+	next_turn()
+	
+func player_attack(index:int):
+	
+	var target = enemies[index]
+	
+	if target:
+		
+		if !target.is_alive():
+			Util.show_notification(self, \"That enemy is already dead.\")
+			return
+		
+		end_item_selection()
+		
+		node_actions.visible = false
+		rich_text_label.visible = true
+		
+		var damage = player.calc_damage(target)
+		#print(\"[Action] Player attacks \", target.name, \" for \", damage, \" damage!\")
+		AudioManager.play_sound(\"click_07\")
+		rich_text_label.text = \"You attack %s for %.1f damage!\" % [target.name, damage]
+		target.apply_damage(damage)
+		enemy_containers[target.index].update_health(target.health, target.max_health)
+		if !target.is_alive():
+			enemy_containers[target.index].set_dead()
+			#print(\"%s is dead.\"  % [target.name])
+		await get_tree().create_timer(1.0).timeout
+		combat_state = CombatState.CHECK_COMBAT_END
+		next_turn()
+
+
+func start_selection(mode: String) -> void:
+
+	selection_mode = mode
+
+	var r = Util.get_number_range(enemies.size())
+	var letter_string = \"[%s-%s]\" % [r[0], r[r.size()-1]]
+
+	match mode:
+		\"attack\":
+			if enemies.size() == 1:
+				# if only a single enemy, automatically choose that as attack target
+				handle_item_selection(0)
+				return
+			else:
+				label_prompt.text = \"Choose target %s\" % [letter_string]
+		\"examine\":
+			label_prompt.text = \"Examine which enemy? %s\" % [letter_string]
+		_:
+			label_prompt.text = \"\"
+
+	node_selection_mode.visible = true
+	node_actions.visible = false
+
+func handle_item_selection(item_index: int) -> void:
+	
+	if item_index < enemies.size():
+		match selection_mode:
+			\"attack\":
+				player_attack(item_index)
+			\"examine\":
+				print(item_index)
+				end_item_selection()
+	
+func end_item_selection() -> void:
+	node_selection_mode.visible = false
+	node_actions.visible = true
+	selection_mode = \"\"
+	
+func _input(event):
+	
+	if event is InputEventKey and event.pressed:
+		if node_actions.visible:
+			if event.is_action_pressed(\"ui_attack\"):
+				start_selection(\"attack\")
+				return
+			if event.is_action_pressed(\"ui_examine_item\"):
+				start_selection(\"examine\")
+				return
+			if event.is_action_pressed(\"ui_flee\"):
+				player_flee()
+				return
+		if combat_state == CombatState.END:
+			if event.is_action_pressed(\"ui_accept\"):
+				close()
+
+		if selection_mode:
+			var item_index = Util.key_to_number(event.keycode)
+			if item_index != -1:
+				handle_item_selection(item_index)
+
+	if selection_mode != \"\" and event.is_action_pressed(\"ui_cancel\"):
+		end_item_selection()
+"
+
+[node name="CanvasLayer" type="CanvasLayer"]
+layer = 2
+script = SubResource("GDScript_icss1")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="node_header" type="Node2D" parent="Background"]
+
+[node name="Label6" type="Label" parent="Background/node_header"]
+offset_left = 120.0
+offset_top = 7.0
+offset_right = 360.0
+offset_bottom = 23.0
+theme = ExtResource("2_uvqtf")
+text = "-- Combat --"
+horizontal_alignment = 1
+
+[node name="node_actions" type="Node2D" parent="Background"]
+
+[node name="Label12" type="Label" parent="Background/node_actions"]
+offset_left = 16.0
+offset_top = 254.0
+offset_right = 121.0
+offset_bottom = 270.0
+theme = ExtResource("2_uvqtf")
+text = "[A] Attack"
+
+[node name="Label14" type="Label" parent="Background/node_actions"]
+visible = false
+offset_left = 367.0
+offset_top = 254.0
+offset_right = 472.0
+offset_bottom = 270.0
+theme = ExtResource("2_uvqtf")
+text = "[R] Resolve"
+
+[node name="Label13" type="Label" parent="Background/node_actions"]
+offset_left = 16.0
+offset_top = 270.0
+offset_right = 142.0
+offset_bottom = 286.0
+theme = ExtResource("2_uvqtf")
+text = "[C] Cast Spell"
+
+[node name="Label16" type="Label" parent="Background/node_actions"]
+offset_left = 331.0
+offset_top = 270.0
+offset_right = 439.0
+offset_bottom = 286.0
+theme = ExtResource("2_uvqtf")
+text = "[F] Flee"
+horizontal_alignment = 2
+
+[node name="Label17" type="Label" parent="Background/node_actions"]
+offset_left = 194.0
+offset_top = 270.0
+offset_right = 293.0
+offset_bottom = 286.0
+theme = ExtResource("2_uvqtf")
+text = "[X] Examine"
+
+[node name="Label15" type="Label" parent="Background/node_actions"]
+offset_left = 194.0
+offset_top = 254.0
+offset_right = 302.0
+offset_bottom = 270.0
+theme = ExtResource("2_uvqtf")
+text = "[U] Use Item"
+
+[node name="label_player_status" type="RichTextLabel" parent="Background"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 202.0
+offset_right = 464.0
+offset_bottom = 241.0
+theme = ExtResource("2_uvqtf")
+theme_override_constants/line_separation = 1
+text = "You are healthy.
+You don't suffer from any afflictions."
+
+[node name="label_player_end_of_combat" type="RichTextLabel" parent="Background"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 207.0
+offset_right = 464.0
+offset_bottom = 272.0
+theme = ExtResource("2_uvqtf")
+theme_override_constants/line_separation = 1
+text = "You have been killed.."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="node_selection_mode" type="Node2D" parent="Background"]
+
+[node name="label_prompt" type="Label" parent="Background/node_selection_mode"]
+offset_left = 17.0
+offset_top = 273.0
+offset_right = 188.0
+offset_bottom = 289.0
+theme = ExtResource("2_uvqtf")
+text = "Use which item? [#]"
+
+[node name="label_cancel" type="Label" parent="Background/node_selection_mode"]
+offset_left = 294.0
+offset_top = 273.0
+offset_right = 465.0
+offset_bottom = 289.0
+theme = ExtResource("2_uvqtf")
+text = "[ESC] Cancel"
+horizontal_alignment = 2
+
+[node name="RichTextLabel" type="RichTextLabel" parent="."]
+offset_left = 16.0
+offset_top = 245.0
+offset_right = 464.0
+offset_bottom = 286.0
+theme = ExtResource("2_uvqtf")
+text = "You slash a Giant Rat with your sword, causing moderate damage."
+horizontal_alignment = 1
+vertical_alignment = 2
